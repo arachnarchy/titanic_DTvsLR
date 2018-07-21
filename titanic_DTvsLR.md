@@ -69,7 +69,7 @@ print(fit)
 prp(fit, extra = 4)
 ```
 
-![](titanic_DTvsLR_Kaggle_files/figure-markdown_github/1-1.png)
+![](titanic_DTvsLR_files/figure-markdown_github/1-1.png)
 
 Now we use the tree to predict survival in the set-aside validation set:
 
