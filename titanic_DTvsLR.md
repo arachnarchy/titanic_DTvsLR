@@ -286,3 +286,18 @@ pred_lr(fit_lr_fact, x_val_all, y_val, "factorial logistic regression")
     ## Validation accuracy for the factorial logistic regression is 0.827.
 
 Accuracy increases by a small amount.
+
+Now let's generate a prediction for the test dataset using this model.
+
+``` r
+test_data <- read.csv("test.csv")
+test_data %<>% NA2mean_df() %>% fill_facs()
+
+prediction <- predict(fit_lr_fact, test_data)
+prediction <- ifelse(prediction >= 0, 1, 0) # reformat to binary
+
+submission <- data.frame(PassengerId = test_data$PassengerId,
+                         Survived = prediction)
+
+write.csv(submission, "titanic_submission_GLM.csv")
+```
