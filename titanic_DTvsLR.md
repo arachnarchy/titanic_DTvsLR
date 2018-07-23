@@ -19,7 +19,7 @@ library(magrittr)
 data <- read.csv("train.csv")
 
 # make output more clear later
-levels(data$Embarked) <- c("", "Cherbourg", "Queenstown", "Southampton")
+#levels(data$Embarked) <- c("", "Cherbourg", "Queenstown", "Southampton")
 ```
 
 First I'm randomly splitting 20% of the training data rows off for validation.
@@ -46,10 +46,10 @@ y_val <- data[idx.val, 2]
 x <- cbind(x_train, y_train)
 
 # grow tree 
-fit <- rpart(y_train ~ ., data = x, method="class")
+fit_dt <- rpart(y_train ~ ., data = x, method="class")
 
 # summarize and plot tree
-print(fit)
+print(fit_dt)
 ```
 
     ## n= 712 
@@ -61,12 +61,12 @@ print(fit)
     ##    2) Sex=male 462  90 0 (0.80519481 0.19480519) *
     ##    3) Sex=female 250  65 1 (0.26000000 0.74000000)  
     ##      6) Pclass>=2.5 107  50 0 (0.53271028 0.46728972)  
-    ##       12) Embarked=Southampton 64  22 0 (0.65625000 0.34375000) *
-    ##       13) Embarked=Cherbourg,Queenstown 43  15 1 (0.34883721 0.65116279) *
+    ##       12) Embarked=S 64  22 0 (0.65625000 0.34375000) *
+    ##       13) Embarked=C,Q 43  15 1 (0.34883721 0.65116279) *
     ##      7) Pclass< 2.5 143   8 1 (0.05594406 0.94405594) *
 
 ``` r
-prp(fit, extra = 4)
+prp(fit_dt, extra = 4)
 ```
 
 ![](titanic_DTvsLR_files/figure-markdown_github/1-1.png)
@@ -74,7 +74,7 @@ prp(fit, extra = 4)
 Now we use the tree to predict survival in the set-aside validation set:
 
 ``` r
-predicted_dt <- predict(fit, x_val)
+predicted_dt <- predict(fit_dt, x_val)
 predicted_dt <- ifelse(predicted_dt[,1] <= 0.5, 1, 0) # reformat to binary
 
 # calculate accuracy of prediction
@@ -106,15 +106,15 @@ summary(fit_lr)
     ## -2.3728  -0.7153  -0.4872   0.6501   2.5772  
     ## 
     ## Coefficients:
-    ##                     Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)          14.4050   535.4112   0.027   0.9785    
-    ## Pclass               -0.8389     0.1209  -6.937 4.01e-12 ***
-    ## Sexmale              -2.6794     0.2194 -12.215  < 2e-16 ***
-    ## SibSp                -0.2486     0.1161  -2.142   0.0322 *  
-    ## Parch                -0.1091     0.1203  -0.907   0.3643    
-    ## EmbarkedCherbourg   -10.8128   535.4113  -0.020   0.9839    
-    ## EmbarkedQueenstown  -11.1964   535.4113  -0.021   0.9833    
-    ## EmbarkedSouthampton -11.2803   535.4112  -0.021   0.9832    
+    ##             Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)  14.4050   535.4112   0.027   0.9785    
+    ## Pclass       -0.8389     0.1209  -6.937 4.01e-12 ***
+    ## Sexmale      -2.6794     0.2194 -12.215  < 2e-16 ***
+    ## SibSp        -0.2486     0.1161  -2.142   0.0322 *  
+    ## Parch        -0.1091     0.1203  -0.907   0.3643    
+    ## EmbarkedC   -10.8128   535.4113  -0.020   0.9839    
+    ## EmbarkedQ   -11.1964   535.4113  -0.021   0.9833    
+    ## EmbarkedS   -11.2803   535.4112  -0.021   0.9832    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
@@ -129,14 +129,18 @@ summary(fit_lr)
 Let's see how accurate this model is:
 
 ``` r
-predicted_lr = predict(fit_lr, x_val)
-predicted_lr <- ifelse(predicted_lr >= 0, 1, 0) # reformat to binary
+pred_lr <- function(fit, valdata, valtargets, title = "fit") {
+  predicted = predict(fit, valdata)
+  predicted <- ifelse(predicted >= 0, 1, 0) # reformat to binary
+  
+  # calculate accuracy of prediction
+  acc <- sum(predicted == valtargets, na.rm = 1) / length(valtargets)
+  cat(paste0("Validation accuracy for the ", title, " is ",
+  round(acc, 3),
+  "."))
+}
 
-# calculate accuracy of prediction
-acc_lr <- sum(predicted_lr == y_val, na.rm = 1) / length(y_val)
-cat(paste0("Validation accuracy for the category-only logistic regression is ",
-           round(acc_lr,3), 
-           "."))
+pred_lr(fit_lr, x_val, y_val, "category-only logistic regression")
 ```
 
     ## Validation accuracy for the category-only logistic regression is 0.81.
@@ -190,16 +194,16 @@ summary(fit_lr_all)
     ## -2.5119  -0.6076  -0.4361   0.6478   2.3714  
     ## 
     ## Coefficients:
-    ##                     Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)         4.619635   0.564877   8.178 2.88e-16 ***
-    ## Pclass             -1.014854   0.152071  -6.674 2.50e-11 ***
-    ## Sexmale            -2.651055   0.221710 -11.957  < 2e-16 ***
-    ## Age                -0.036389   0.008452  -4.306 1.67e-05 ***
-    ## SibSp              -0.331481   0.125955  -2.632  0.00849 ** 
-    ## Parch              -0.138919   0.128262  -1.083  0.27877    
-    ## Fare                0.001244   0.002444   0.509  0.61085    
-    ## EmbarkedCherbourg   0.376867   0.268806   1.402  0.16091    
-    ## EmbarkedQueenstown  0.168047   0.364815   0.461  0.64506    
+    ##              Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)  4.619635   0.564877   8.178 2.88e-16 ***
+    ## Pclass      -1.014854   0.152071  -6.674 2.50e-11 ***
+    ## Sexmale     -2.651055   0.221710 -11.957  < 2e-16 ***
+    ## Age         -0.036389   0.008452  -4.306 1.67e-05 ***
+    ## SibSp       -0.331481   0.125955  -2.632  0.00849 ** 
+    ## Parch       -0.138919   0.128262  -1.083  0.27877    
+    ## Fare         0.001244   0.002444   0.509  0.61085    
+    ## EmbarkedC    0.376867   0.268806   1.402  0.16091    
+    ## EmbarkedQ    0.168047   0.364815   0.461  0.64506    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
@@ -214,14 +218,7 @@ summary(fit_lr_all)
 Finally, we can see if how accurate this is:
 
 ``` r
-predicted_lr_all = predict(fit_lr_all, x_val_all) 
-predicted_lr_all <- ifelse(predicted_lr_all >= 0, 1, 0) # reformat to binary
-
-# calculate accuracy of prediction
-acc_lr_all <- sum(predicted_lr_all == y_val, na.rm = 1) / length(y_val)
-cat(paste0("Validation accuracy for the full logistic regression is ",
-           round(acc_lr_all,3), 
-           "."))
+pred_lr(fit_lr_all, x_val_all, y_val, "full logistic regression")
 ```
 
     ## Validation accuracy for the full logistic regression is 0.821.
@@ -254,21 +251,21 @@ summary(fit_lr_fact)
     ## -3.3101  -0.6651  -0.4486   0.4724   2.3078  
     ## 
     ## Coefficients:
-    ##                             Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)                 8.249923   1.083366   7.615 2.64e-14 ***
-    ## Pclass                     -2.505751   0.371271  -6.749 1.49e-11 ***
-    ## Sexmale                    -6.910268   1.012466  -6.825 8.78e-12 ***
-    ## Age                        -0.038452   0.009085  -4.232 2.31e-05 ***
-    ## SibSp                      -0.303951   0.132518  -2.294   0.0218 *  
-    ## Parch                      -0.051382   0.137044  -0.375   0.7077    
-    ## Fare                        0.001410   0.002580   0.547   0.5846    
-    ## EmbarkedCherbourg          -0.392425   1.000822  -0.392   0.6950    
-    ## EmbarkedQueenstown         -0.049760   5.307894  -0.009   0.9925    
-    ## Pclass:Sexmale              1.808215   0.383638   4.713 2.44e-06 ***
-    ## Sexmale:EmbarkedCherbourg   0.301914   0.632581   0.477   0.6332    
-    ## Sexmale:EmbarkedQueenstown -1.960342   0.907779  -2.159   0.0308 *  
-    ## Pclass:EmbarkedCherbourg    0.304757   0.314233   0.970   0.3321    
-    ## Pclass:EmbarkedQueenstown   0.439533   1.777793   0.247   0.8047    
+    ##                    Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)        8.249923   1.083366   7.615 2.64e-14 ***
+    ## Pclass            -2.505751   0.371271  -6.749 1.49e-11 ***
+    ## Sexmale           -6.910268   1.012466  -6.825 8.78e-12 ***
+    ## Age               -0.038452   0.009085  -4.232 2.31e-05 ***
+    ## SibSp             -0.303951   0.132518  -2.294   0.0218 *  
+    ## Parch             -0.051382   0.137044  -0.375   0.7077    
+    ## Fare               0.001410   0.002580   0.547   0.5846    
+    ## EmbarkedC         -0.392425   1.000822  -0.392   0.6950    
+    ## EmbarkedQ         -0.049760   5.307894  -0.009   0.9925    
+    ## Pclass:Sexmale     1.808215   0.383638   4.713 2.44e-06 ***
+    ## Sexmale:EmbarkedC  0.301914   0.632581   0.477   0.6332    
+    ## Sexmale:EmbarkedQ -1.960342   0.907779  -2.159   0.0308 *  
+    ## Pclass:EmbarkedC   0.304757   0.314233   0.970   0.3321    
+    ## Pclass:EmbarkedQ   0.439533   1.777793   0.247   0.8047    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
@@ -280,17 +277,12 @@ summary(fit_lr_fact)
     ## 
     ## Number of Fisher Scoring iterations: 6
 
-``` r
-predicted_lr_fact = predict(fit_lr_fact, x_val_all) 
-predicted_lr_fact <- ifelse(predicted_lr_fact >= 0, 1, 0) # reformat to binary
+Calculate prediction accuracy once again:
 
-# calculate accuracy of prediction
-acc_lr_fact <- sum(predicted_lr_fact == y_val, na.rm = 1) / length(y_val)
-cat(paste0("Validation accuracy for the full logistic regression is ",
-           round(acc_lr_fact, 3), 
-           "."))
+``` r
+pred_lr(fit_lr_fact, x_val_all, y_val, "factorial logistic regression")
 ```
 
-    ## Validation accuracy for the full logistic regression is 0.827.
+    ## Validation accuracy for the factorial logistic regression is 0.827.
 
 Accuracy increases by a small amount.
